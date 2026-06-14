@@ -34,3 +34,22 @@ Run it standalone:
 docker build -t fido2-demo samples/Fido2DemoServer
 docker run -p 8080:8080 fido2-demo
 ```
+
+## `DemoClient/`
+
+A runnable console client for the demo server, showing the **consumer side** of the kit: the kit
+does `JSON <-> signature <-> JSON`, while the client owns the HTTP transport, the begin/finish
+continuity, token usage, and device-state persistence (design.md §6).
+
+```bash
+# with the demo server running (Docker on :8080, or `dotnet run` on its launch port):
+dotnet run --project samples/DemoClient -- --server http://localhost:8080 --user alice
+
+# persist the device so the signature counter survives across runs:
+dotnet run --project samples/DemoClient -- --server http://localhost:8080 --state device.json
+```
+
+Options: `--server <url>` (default `http://localhost:8080`), `--user <name>` (default `alice`),
+`--descriptor <path>` (defaults to `samples/descriptors/fido2-demo.json`), `--state <path>`
+(restore/save `DeviceState`; when present, registration is skipped and only authentication runs,
+demonstrating the counter advancing on the real server).

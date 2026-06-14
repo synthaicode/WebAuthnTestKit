@@ -53,7 +53,9 @@ tests/WebAuthnTestKit.Tests            xUnit unit tests
 tests/WebAuthnTestKit.IntegrationTests Docker/Testcontainers tests against a real Fido2NetLib server
 samples/descriptors/fido2-demo.json    example JSON envelope descriptor
 samples/Fido2DemoServer                dockerized independent WebAuthn server for integration tests
+samples/DemoClient                     runnable console client for the demo server
 docs/design.md                         full IF spec and usage walkthrough
+docs/status.md                         implementation status
 ```
 
 ## Testing
