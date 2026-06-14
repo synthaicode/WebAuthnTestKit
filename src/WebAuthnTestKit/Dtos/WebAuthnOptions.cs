@@ -31,18 +31,24 @@ public record AllowCredential(string Type, byte[] Id);
 /// <summary>
 /// Standard, API-agnostic registration options decoded from a server's "begin" response.
 /// <see cref="Challenge"/> is the raw (decoded) challenge; the device re-encodes it as
-/// base64url inside clientDataJSON per spec.
+/// base64url inside clientDataJSON per spec. <see cref="Origin"/> is the full caller origin
+/// (e.g. <c>https://example.com</c>) written into clientDataJSON; it comes from the descriptor's
+/// <c>rp.origin</c> and is distinct from the RP ID hashed into authenticatorData.
 /// </summary>
 public record CreationOptions(
     byte[] Challenge,
     RpEntity Rp,
     UserEntity User,
-    PubKeyCredParam[] Params);
+    PubKeyCredParam[] Params,
+    string Origin);
 
 /// <summary>
 /// Standard, API-agnostic assertion options decoded from a server's "begin" response.
+/// <see cref="Origin"/> is the full caller origin written into clientDataJSON;
+/// <see cref="RpId"/> is the domain hashed into authenticatorData.
 /// </summary>
 public record RequestOptions(
     byte[] Challenge,
     string RpId,
-    AllowCredential[] Allow);
+    AllowCredential[] Allow,
+    string Origin);
