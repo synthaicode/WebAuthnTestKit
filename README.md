@@ -45,7 +45,7 @@ var result  = reg.DecodeResult(await PostJson("/attestation/result", finish));
 // ... Authentication is the same shape via kit.Authentication(...).GetAssertion(...)
 ```
 
-See [docs/design.md](docs/design.md) for the full walkthrough and `samples/` for a runnable
+See [docs/design.en.md](docs/design.en.md) for the full walkthrough and `samples/` for a runnable
 descriptor + demo server.
 
 ## Layout
@@ -57,7 +57,8 @@ tests/WebAuthnTestKit.IntegrationTests Docker/Testcontainers tests against a rea
 samples/descriptors/fido2-demo.json    example JSON envelope descriptor
 samples/Fido2DemoServer                dockerized independent WebAuthn server for integration tests
 samples/DemoClient                     runnable console client for the demo server
-docs/design.md                         full IF spec and usage walkthrough
+docs/design.en.md                      full interface spec and usage walkthrough (English)
+docs/design.md                         同上(日本語)
 docs/status.md                         implementation status
 ```
 
@@ -73,7 +74,7 @@ dotnet test                                   # includes Docker-based integratio
 Core library (① virtual authenticator + ② envelope codecs) is **complete** and tested —
 11 unit tests plus 2 Docker-based integration tests passing against an independent Fido2NetLib
 server. See [docs/status.md](docs/status.md) for the detailed breakdown and
-[docs/design.md](docs/design.md) for the interface specification and descriptor schema.
+[docs/design.en.md](docs/design.en.md) for the interface specification and descriptor schema.
 
 Optional/future work (not implemented): a thin HTTP flow runner, more algorithms (RS256/EdDSA),
 and richer attestation formats.

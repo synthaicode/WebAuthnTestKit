@@ -5,6 +5,8 @@ FIDO2/WebAuthnで保護されたAPIを、**疑似デバイス(ソフトウェア
 
 > **状態**: 本書は**実装済みのAPIに同期**しています(コア①+②完成)。進捗は [status.md](status.md)、
 > 動く例は `samples/`。仕様の細部はソース(`src/WebAuthnTestKit/`)が最終的な正本です。
+>
+> English: [design.en.md](design.en.md)
 
 ---
 
