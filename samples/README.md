@@ -47,9 +47,16 @@ dotnet run --project samples/DemoClient -- --server http://localhost:8080 --user
 
 # persist the device so the signature counter survives across runs:
 dotnet run --project samples/DemoClient -- --server http://localhost:8080 --state device.json
+
+# require user verification on authentication (server enforces the UV flag):
+dotnet run --project samples/DemoClient -- --server http://localhost:8080 --uv
 ```
 
 Options: `--server <url>` (default `http://localhost:8080`), `--user <name>` (default `alice`),
 `--descriptor <path>` (defaults to `samples/descriptors/fido2-demo.json`), `--state <path>`
 (restore/save `DeviceState`; when present, registration is skipped and only authentication runs,
-demonstrating the counter advancing on the real server).
+demonstrating the counter advancing on the real server), `--uv` (request
+`userVerification=required` on authentication; the default device sets the UV flag and is accepted).
+
+> The integration tests also cover `userVerification=required` both ways: a UV-capable device is
+> accepted, and a device that does not set the UV flag is rejected by the server.

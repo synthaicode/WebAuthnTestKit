@@ -82,10 +82,17 @@ app.MapPost("/assertion/options", async (HttpContext ctx) =>
     if (!Store.Credentials.TryGetValue(username, out var cred))
         return Results.BadRequest(new JsonObject { ["status"] = "error", ["message"] = "unknown user" });
 
+    var userVerification = body["userVerification"]?.GetValue<string>() switch
+    {
+        "required" => UserVerificationRequirement.Required,
+        "discouraged" => UserVerificationRequirement.Discouraged,
+        _ => UserVerificationRequirement.Preferred,
+    };
+
     var options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
     {
         AllowedCredentials = new[] { new PublicKeyCredentialDescriptor(cred.CredentialId) },
-        UserVerification = UserVerificationRequirement.Preferred,
+        UserVerification = userVerification,
     });
 
     Store.AssertionOptions[username] = options;

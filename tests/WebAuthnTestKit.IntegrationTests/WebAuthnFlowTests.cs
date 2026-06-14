@@ -75,6 +75,54 @@ public sealed class WebAuthnFlowTests : IClassFixture<Fido2DemoServerFixture>
         Assert.Equal(2, await Authenticate());   // server accepts the strictly-increasing counter
     }
 
+    [Fact]
+    public async Task User_verification_required_succeeds_for_uv_capable_device()
+    {
+        const string username = "carol";
+        var device = new VirtualAuthenticator(new());   // UserVerified = true by default
+        await RegisterDevice(username, device);
+
+        var auth = _kit.Authentication("fido2-demo");
+        var begin = await Post("/assertion/options",
+            new JsonObject { ["username"] = username, ["userVerification"] = "required" });
+        var opts = auth.DecodeOptions(begin);
+        var assertion = device.GetAssertion(opts.Options);
+        var result = auth.DecodeResult(await Post("/assertion/result", auth.EncodeFinish(assertion, opts.Context)));
+
+        Assert.True(result.Success, "UV-capable device should satisfy userVerification=required");
+    }
+
+    [Fact]
+    public async Task User_verification_required_rejects_device_without_uv_flag()
+    {
+        const string username = "dave";
+        var device = new VirtualAuthenticator(new());
+        await RegisterDevice(username, device);
+
+        // Same credential, but a device that does NOT set the UV flag.
+        var uvless = VirtualAuthenticator.Import(device.Export() with { UserVerified = false });
+
+        var auth = _kit.Authentication("fido2-demo");
+        var begin = await Post("/assertion/options",
+            new JsonObject { ["username"] = username, ["userVerification"] = "required" });
+        var opts = auth.DecodeOptions(begin);
+        var assertion = uvless.GetAssertion(opts.Options);   // valid signature, UV flag off
+        var body = auth.EncodeFinish(assertion, opts.Context);
+
+        // The server requires UV, so it must reject the assertion (non-2xx -> Post throws).
+        await Assert.ThrowsAsync<Xunit.Sdk.XunitException>(() => Post("/assertion/result", body));
+    }
+
+    private async Task RegisterDevice(string username, VirtualAuthenticator device)
+    {
+        var reg = _kit.Registration("fido2-demo");
+        var begin = await Post("/attestation/options", new JsonObject { ["username"] = username });
+        var opts = reg.DecodeOptions(begin);
+        var att = device.MakeCredential(opts.Options);
+        var result = reg.DecodeResult(await Post("/attestation/result", reg.EncodeFinish(att, opts.Context)));
+        Assert.True(result.Success);
+    }
+
     private async Task<JsonNode> Post(string path, JsonNode body)
     {
         using var content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");

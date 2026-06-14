@@ -10,6 +10,7 @@ using WebAuthnTestKit;
 // Usage:
 //   dotnet run --project samples/DemoClient -- [--server http://localhost:8080]
 //                                               [--user alice] [--descriptor path] [--state path]
+//                                               [--uv]   # request userVerification=required on auth
 
 var opts = Args.Parse(args);
 var descriptorPath = opts.Descriptor ?? Path.Combine(RepoRoot(), "samples", "descriptors", "fido2-demo.json");
@@ -34,7 +35,7 @@ try
     if (!hasCredential)
         await Register(kit, http, device, opts.User);
 
-    await Authenticate(kit, http, device, opts.User);
+    await Authenticate(kit, http, device, opts.User, opts.Uv);
 
     if (opts.State is { } statePath)
     {
@@ -69,16 +70,19 @@ static async Task Register(TestKit kit, HttpClient http, VirtualAuthenticator de
     Console.WriteLine($"  finish -> success={result.Success}");
 }
 
-static async Task Authenticate(TestKit kit, HttpClient http, VirtualAuthenticator device, string user)
+static async Task Authenticate(TestKit kit, HttpClient http, VirtualAuthenticator device, string user, bool requireUv)
 {
-    Console.WriteLine("== Authentication ==");
+    Console.WriteLine($"== Authentication ==  (userVerification: {(requireUv ? "required" : "preferred")})");
     var auth = kit.Authentication("fido2-demo");
 
-    var begin = await Post(http, "/assertion/options", new JsonObject { ["username"] = user });
+    var beginBody = new JsonObject { ["username"] = user };
+    if (requireUv) beginBody["userVerification"] = "required";   // server enforces the UV flag
+
+    var begin = await Post(http, "/assertion/options", beginBody);
     Console.WriteLine("  begin  -> options received");
 
     var decoded = auth.DecodeOptions(begin);
-    var assertion = device.GetAssertion(decoded.Options);         // advances signCount
+    var assertion = device.GetAssertion(decoded.Options);         // device sets UV flag (UserVerified=true), advances signCount
     var body = auth.EncodeFinish(assertion, decoded.Context);
 
     var result = auth.DecodeResult(await Post(http, "/assertion/result", body));
@@ -108,23 +112,25 @@ static string RepoRoot()
 
 sealed class HttpFlowException(string message) : Exception(message);
 
-readonly record struct Options(string Server, string User, string? Descriptor, string? State)
+readonly record struct Options(string Server, string User, string? Descriptor, string? State, bool Uv)
 {
     public static Options Parse(string[] args)
     {
         string server = "http://localhost:8080", user = "alice";
         string? descriptor = null, state = null;
-        for (var i = 0; i + 1 < args.Length; i += 2)
+        bool uv = false;
+        for (var i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
-                case "--server": server = args[i + 1]; break;
-                case "--user": user = args[i + 1]; break;
-                case "--descriptor": descriptor = args[i + 1]; break;
-                case "--state": state = args[i + 1]; break;
+                case "--uv": uv = true; break;
+                case "--server" when i + 1 < args.Length: server = args[++i]; break;
+                case "--user" when i + 1 < args.Length: user = args[++i]; break;
+                case "--descriptor" when i + 1 < args.Length: descriptor = args[++i]; break;
+                case "--state" when i + 1 < args.Length: state = args[++i]; break;
             }
         }
-        return new Options(server, user, descriptor, state);
+        return new Options(server, user, descriptor, state, uv);
     }
 }
 
