@@ -113,6 +113,30 @@ public sealed class WebAuthnFlowTests : IClassFixture<Fido2DemoServerFixture>
         await Assert.ThrowsAsync<Xunit.Sdk.XunitException>(() => Post("/assertion/result", body));
     }
 
+    [Fact]
+    public async Task Multiple_devices_for_one_user_each_authenticate()
+    {
+        const string username = "erin";
+        var deviceA = new VirtualAuthenticator(new());
+        var deviceB = new VirtualAuthenticator(new());
+
+        await RegisterDevice(username, deviceA);
+        await RegisterDevice(username, deviceB);   // second passkey on the same account
+
+        // The server offers both credentials in allowCredentials; each device signs with its own.
+        Assert.True(await AuthenticateWith(username, deviceA), "device A should authenticate");
+        Assert.True(await AuthenticateWith(username, deviceB), "device B should authenticate");
+    }
+
+    private async Task<bool> AuthenticateWith(string username, VirtualAuthenticator device)
+    {
+        var auth = _kit.Authentication("fido2-demo");
+        var begin = await Post("/assertion/options", new JsonObject { ["username"] = username });
+        var opts = auth.DecodeOptions(begin);
+        var assertion = device.GetAssertion(opts.Options);
+        return auth.DecodeResult(await Post("/assertion/result", auth.EncodeFinish(assertion, opts.Context))).Success;
+    }
+
     private async Task RegisterDevice(string username, VirtualAuthenticator device)
     {
         var reg = _kit.Registration("fido2-demo");

@@ -1,3 +1,4 @@
+using System.Buffers.Text;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -7,41 +8,39 @@ using WebAuthnTestKit;
 // the kit converts JSON <-> signature <-> JSON, while this program owns the HTTP transport,
 // the begin/finish continuity, token usage, and device-state persistence (design.md §6).
 //
-// Usage:
-//   dotnet run --project samples/DemoClient -- [--server http://localhost:8080]
-//                                               [--user alice] [--descriptor path] [--state path]
-//                                               [--uv]   # request userVerification=required on auth
+// Commands (registration and authentication are separate operations):
+//   register  --state <file>            register a NEW device, save it; does not authenticate
+//   auth      --state <file> [--uv]     authenticate with a previously registered device
+//   demo                                register TWO devices to one account, then auth with each
+//
+// Common options: --server <url> (default http://localhost:8080), --user <name> (default alice),
+//                 --descriptor <path>, --uv (request userVerification=required on auth)
 
-var opts = Args.Parse(args);
+string command = "demo";
+var optionArgs = args;
+if (args.Length > 0 && !args[0].StartsWith("--")) { command = args[0]; optionArgs = args[1..]; }
+var opts = Options.Parse(optionArgs);
+
 var descriptorPath = opts.Descriptor ?? Path.Combine(RepoRoot(), "samples", "descriptors", "fido2-demo.json");
-
 var kit = TestKit.FromJson(File.ReadAllText(descriptorPath));
 using var http = new HttpClient { BaseAddress = new Uri(opts.Server) };
 
-// Restore a previously registered device if a state file was given and exists; else a fresh one.
-var device = opts.State is { } sp && File.Exists(sp)
-    ? VirtualAuthenticator.Import(JsonSerializer.Deserialize<DeviceState>(File.ReadAllText(sp))!)
-    : new VirtualAuthenticator(new());
-var hasCredential = opts.State is { } s && File.Exists(s);
-
-Console.WriteLine($"server     : {opts.Server}");
-Console.WriteLine($"descriptor : {descriptorPath}");
-Console.WriteLine($"user       : {opts.User}");
-Console.WriteLine($"device     : {(hasCredential ? "restored from state" : "new")}");
+Console.WriteLine($"server  : {opts.Server}");
+Console.WriteLine($"user    : {opts.User}");
+Console.WriteLine($"command : {command}");
 Console.WriteLine();
 
 try
 {
-    if (!hasCredential)
-        await Register(kit, http, device, opts.User);
-
-    await Authenticate(kit, http, device, opts.User, opts.Uv);
-
-    if (opts.State is { } statePath)
+    switch (command)
     {
-        File.WriteAllText(statePath, JsonSerializer.Serialize(device.Export(),
-            new JsonSerializerOptions { WriteIndented = true }));
-        Console.WriteLine($"\n[state] saved device (with advanced signCount) to {statePath}");
+        case "register": await RegisterCommand(); break;
+        case "auth": await AuthCommand(); break;
+        case "demo": await DemoCommand(); break;
+        default:
+            Console.Error.WriteLine($"unknown command '{command}'. Use: register | auth | demo");
+            Environment.Exit(2);
+            break;
     }
 }
 catch (HttpFlowException ex)
@@ -52,45 +51,96 @@ catch (HttpFlowException ex)
 
 return;
 
-// ── Ceremonies ──────────────────────────────────────────────
+// ── Commands ────────────────────────────────────────────────
 
-static async Task Register(TestKit kit, HttpClient http, VirtualAuthenticator device, string user)
+async Task RegisterCommand()
 {
-    Console.WriteLine("== Registration ==");
-    var reg = kit.Registration("fido2-demo");
+    if (opts.State is not { } statePath)
+    {
+        Console.Error.WriteLine("register requires --state <file> to save the new device.");
+        Environment.Exit(2);
+        return;
+    }
 
-    var begin = await Post(http, "/attestation/options", new JsonObject { ["username"] = user });
-    Console.WriteLine("  begin  -> options received");
-
-    var decoded = reg.DecodeOptions(begin);                       // app envelope -> standard options
-    var attestation = device.MakeCredential(decoded.Options);     // sign with the test device
-    var body = reg.EncodeFinish(attestation, decoded.Context);    // standard output -> app finish body
-
-    var result = reg.DecodeResult(await Post(http, "/attestation/result", body));
-    Console.WriteLine($"  finish -> success={result.Success}");
+    Console.WriteLine("== Register a new device ==");
+    var device = new VirtualAuthenticator(new());           // a brand-new authenticator each time
+    var credentialId = await RegisterFlow(device, opts.User);
+    SaveDevice(device, statePath);
+    Console.WriteLine($"  credential {Short(credentialId)} registered -> saved device to {statePath}");
 }
 
-static async Task Authenticate(TestKit kit, HttpClient http, VirtualAuthenticator device, string user, bool requireUv)
+async Task AuthCommand()
 {
-    Console.WriteLine($"== Authentication ==  (userVerification: {(requireUv ? "required" : "preferred")})");
-    var auth = kit.Authentication("fido2-demo");
+    if (opts.State is not { } statePath || !File.Exists(statePath))
+    {
+        Console.Error.WriteLine("auth requires an existing --state <file> (run 'register' first).");
+        Environment.Exit(2);
+        return;
+    }
 
+    Console.WriteLine($"== Authenticate ==  (userVerification: {(opts.Uv ? "required" : "preferred")})");
+    var device = LoadDevice(statePath);
+    var result = await AuthFlow(device, opts.User, opts.Uv);
+    SaveDevice(device, statePath);                          // persist the advanced signCount
+    Console.WriteLine($"  success={result.Success}  token={result.PrimaryToken}");
+}
+
+async Task DemoCommand()
+{
+    // Register MULTIPLE devices to the same account, then authenticate with each independently
+    // (mirrors a user enrolling several passkeys).
+    var stateA = Path.Combine(Path.GetTempPath(), $"{opts.User}-A.device.json");
+    var stateB = Path.Combine(Path.GetTempPath(), $"{opts.User}-B.device.json");
+
+    Console.WriteLine("== Register device A ==");
+    var deviceA = new VirtualAuthenticator(new());
+    var credA = await RegisterFlow(deviceA, opts.User);
+    SaveDevice(deviceA, stateA);
+    Console.WriteLine($"  device A credential {Short(credA)} -> {stateA}");
+
+    Console.WriteLine("== Register device B ==");
+    var deviceB = new VirtualAuthenticator(new());
+    var credB = await RegisterFlow(deviceB, opts.User);
+    SaveDevice(deviceB, stateB);
+    Console.WriteLine($"  device B credential {Short(credB)} -> {stateB}");
+
+    Console.WriteLine("\n== Authenticate with device A ==");
+    var ra = await AuthFlow(LoadDevice(stateA), opts.User, opts.Uv);
+    Console.WriteLine($"  success={ra.Success}  token={ra.PrimaryToken}");
+
+    Console.WriteLine("== Authenticate with device B ==");
+    var rb = await AuthFlow(LoadDevice(stateB), opts.User, opts.Uv);
+    Console.WriteLine($"  success={rb.Success}  token={rb.PrimaryToken}");
+
+    Console.WriteLine($"\n[demo] two devices registered to '{opts.User}', each authenticated independently.");
+}
+
+// ── Reusable ceremony flows (kit + HTTP) ────────────────────
+
+async Task<byte[]> RegisterFlow(VirtualAuthenticator device, string user)
+{
+    var reg = kit.Registration("fido2-demo");
+    var begin = await Post(http, "/attestation/options", new JsonObject { ["username"] = user });
+    var decoded = reg.DecodeOptions(begin);
+    var attestation = device.MakeCredential(decoded.Options);
+    var result = reg.DecodeResult(await Post(http, "/attestation/result", reg.EncodeFinish(attestation, decoded.Context)));
+    if (!result.Success) throw new HttpFlowException("registration was rejected by the server");
+    return attestation.CredentialId;
+}
+
+async Task<CeremonyResult> AuthFlow(VirtualAuthenticator device, string user, bool requireUv)
+{
+    var auth = kit.Authentication("fido2-demo");
     var beginBody = new JsonObject { ["username"] = user };
-    if (requireUv) beginBody["userVerification"] = "required";   // server enforces the UV flag
+    if (requireUv) beginBody["userVerification"] = "required";
 
     var begin = await Post(http, "/assertion/options", beginBody);
-    Console.WriteLine("  begin  -> options received");
-
-    var decoded = auth.DecodeOptions(begin);
-    var assertion = device.GetAssertion(decoded.Options);         // device sets UV flag (UserVerified=true), advances signCount
-    var body = auth.EncodeFinish(assertion, decoded.Context);
-
-    var result = auth.DecodeResult(await Post(http, "/assertion/result", body));
-    Console.WriteLine($"  finish -> success={result.Success}");
-    Console.WriteLine($"  token  -> {result.PrimaryToken}");
+    var decoded = auth.DecodeOptions(begin);                // allowCredentials may list several devices;
+    var assertion = device.GetAssertion(decoded.Options);   // this device signs with its own credential
+    return auth.DecodeResult(await Post(http, "/assertion/result", auth.EncodeFinish(assertion, decoded.Context)));
 }
 
-// ── Consumer-owned HTTP transport ───────────────────────────
+// ── Consumer-owned plumbing ─────────────────────────────────
 
 static async Task<JsonNode> Post(HttpClient http, string path, JsonNode body)
 {
@@ -101,6 +151,14 @@ static async Task<JsonNode> Post(HttpClient http, string path, JsonNode body)
         throw new HttpFlowException($"POST {path} -> {(int)response.StatusCode}: {text}");
     return JsonNode.Parse(text)!;
 }
+
+static VirtualAuthenticator LoadDevice(string path) =>
+    VirtualAuthenticator.Import(JsonSerializer.Deserialize<DeviceState>(File.ReadAllText(path))!);
+
+static void SaveDevice(VirtualAuthenticator device, string path) =>
+    File.WriteAllText(path, JsonSerializer.Serialize(device.Export(), new JsonSerializerOptions { WriteIndented = true }));
+
+static string Short(byte[] credentialId) => Base64Url.EncodeToString(credentialId)[..8] + "…";
 
 static string RepoRoot()
 {
@@ -132,9 +190,4 @@ readonly record struct Options(string Server, string User, string? Descriptor, s
         }
         return new Options(server, user, descriptor, state, uv);
     }
-}
-
-static class Args
-{
-    public static Options Parse(string[] args) => Options.Parse(args);
 }

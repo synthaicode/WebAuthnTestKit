@@ -41,22 +41,32 @@ A runnable console client for the demo server, showing the **consumer side** of 
 does `JSON <-> signature <-> JSON`, while the client owns the HTTP transport, the begin/finish
 continuity, token usage, and device-state persistence (design.md §6).
 
+Registration and authentication are **separate commands**, so you can enrol devices independently
+of signing in.
+
 ```bash
-# with the demo server running (Docker on :8080, or `dotnet run` on its launch port):
-dotnet run --project samples/DemoClient -- --server http://localhost:8080 --user alice
+# 1) register a new device (saves its DeviceState; does NOT authenticate)
+dotnet run --project samples/DemoClient -- register --user alice --state alice.device.json
 
-# persist the device so the signature counter survives across runs:
-dotnet run --project samples/DemoClient -- --server http://localhost:8080 --state device.json
+# 2) authenticate later with that device (counter persists; --uv requires user verification)
+dotnet run --project samples/DemoClient -- auth --user alice --state alice.device.json --uv
 
-# require user verification on authentication (server enforces the UV flag):
-dotnet run --project samples/DemoClient -- --server http://localhost:8080 --uv
+# multiple devices on one account: register two and authenticate with each
+dotnet run --project samples/DemoClient -- register --user alice --state alice-phone.json
+dotnet run --project samples/DemoClient -- register --user alice --state alice-laptop.json
+dotnet run --project samples/DemoClient -- auth --user alice --state alice-phone.json
+dotnet run --project samples/DemoClient -- auth --user alice --state alice-laptop.json
+
+# one-shot demo of the above (registers two devices, authenticates with each)
+dotnet run --project samples/DemoClient -- demo --user alice
 ```
 
-Options: `--server <url>` (default `http://localhost:8080`), `--user <name>` (default `alice`),
-`--descriptor <path>` (defaults to `samples/descriptors/fido2-demo.json`), `--state <path>`
-(restore/save `DeviceState`; when present, registration is skipped and only authentication runs,
-demonstrating the counter advancing on the real server), `--uv` (request
-`userVerification=required` on authentication; the default device sets the UV flag and is accepted).
+Commands: `register` (new device → `--state` file, required), `auth` (existing `--state` device),
+`demo` (registers two devices to one account and authenticates with each).
+Common options: `--server <url>` (default `http://localhost:8080`), `--user <name>` (default
+`alice`), `--descriptor <path>`, `--uv` (request `userVerification=required`; the default device
+sets the UV flag and is accepted).
 
-> The integration tests also cover `userVerification=required` both ways: a UV-capable device is
-> accepted, and a device that does not set the UV flag is rejected by the server.
+> The demo server stores **multiple credentials per user**, so one account can enrol many devices.
+> Integration tests cover this (two devices each authenticate) plus `userVerification=required`
+> both ways: a UV-capable device is accepted, and a device that does not set the UV flag is rejected.

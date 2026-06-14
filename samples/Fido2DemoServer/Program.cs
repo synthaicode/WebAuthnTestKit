@@ -67,11 +67,17 @@ app.MapPost("/attestation/result", async (HttpContext ctx) =>
         IsCredentialIdUniqueToUserCallback = static (_, _) => Task.FromResult(true),
     }, ctx.RequestAborted);
 
-    Store.Credentials[username] = new CredentialRecord(
-        credential.Id, credential.PublicKey, credential.SignCount,
-        System.Text.Encoding.UTF8.GetBytes(username));
+    var creds = Store.CredentialsFor(username);
+    lock (creds)
+        creds.Add(new CredentialRecord
+        {
+            CredentialId = credential.Id,
+            PublicKey = credential.PublicKey,
+            SignCount = credential.SignCount,
+            UserHandle = System.Text.Encoding.UTF8.GetBytes(username),
+        });
 
-    return Results.Json(new JsonObject { ["status"] = "ok" });
+    return Results.Json(new JsonObject { ["status"] = "ok", ["credentialCount"] = creds.Count });
 });
 
 // ── Authentication ──────────────────────────────────────────
@@ -79,7 +85,10 @@ app.MapPost("/assertion/options", async (HttpContext ctx) =>
 {
     var body = await ReadJson(ctx);
     var username = body["username"]!.GetValue<string>();
-    if (!Store.Credentials.TryGetValue(username, out var cred))
+    var creds = Store.CredentialsFor(username);
+    List<CredentialRecord> snapshot;
+    lock (creds) snapshot = creds.ToList();
+    if (snapshot.Count == 0)
         return Results.BadRequest(new JsonObject { ["status"] = "error", ["message"] = "unknown user" });
 
     var userVerification = body["userVerification"]?.GetValue<string>() switch
@@ -91,7 +100,8 @@ app.MapPost("/assertion/options", async (HttpContext ctx) =>
 
     var options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
     {
-        AllowedCredentials = new[] { new PublicKeyCredentialDescriptor(cred.CredentialId) },
+        // Offer every credential registered to this user, so any of their devices can sign.
+        AllowedCredentials = snapshot.Select(c => new PublicKeyCredentialDescriptor(c.CredentialId)).ToList(),
         UserVerification = userVerification,
     });
 
@@ -108,11 +118,17 @@ app.MapPost("/assertion/result", async (HttpContext ctx) =>
 {
     var body = await ReadJson(ctx);
     var username = body["username"]!.GetValue<string>();
-    if (!Store.AssertionOptions.TryGetValue(username, out var options) ||
-        !Store.Credentials.TryGetValue(username, out var cred))
+    if (!Store.AssertionOptions.TryGetValue(username, out var options))
         return Results.BadRequest(new JsonObject { ["status"] = "error", ["message"] = "no pending assertion" });
 
     var raw = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(body["assertion"]!.ToJsonString())!;
+
+    // Select the specific credential the device signed with (by credential id) among the user's devices.
+    var creds = Store.CredentialsFor(username);
+    CredentialRecord? cred;
+    lock (creds) cred = creds.Find(c => c.CredentialId.AsSpan().SequenceEqual(raw.RawId));
+    if (cred is null)
+        return Results.BadRequest(new JsonObject { ["status"] = "error", ["message"] = "unknown credential" });
 
     var result = await fido2.MakeAssertionAsync(new MakeAssertionParams
     {
@@ -124,7 +140,7 @@ app.MapPost("/assertion/result", async (HttpContext ctx) =>
             Task.FromResult(args.UserHandle.AsSpan().SequenceEqual(cred.UserHandle)),
     }, ctx.RequestAborted);
 
-    Store.Credentials[username] = cred with { SignCount = result.SignCount };
+    lock (creds) cred.SignCount = result.SignCount;
 
     return Results.Json(new JsonObject
     {
@@ -139,11 +155,22 @@ app.Run();
 static async Task<JsonObject> ReadJson(HttpContext ctx) =>
     (JsonObject)(await JsonNode.ParseAsync(ctx.Request.Body))!;
 
-internal sealed record CredentialRecord(byte[] CredentialId, byte[] PublicKey, uint SignCount, byte[] UserHandle);
+internal sealed class CredentialRecord
+{
+    public required byte[] CredentialId { get; init; }
+    public required byte[] PublicKey { get; init; }
+    public required byte[] UserHandle { get; init; }
+    public uint SignCount { get; set; }
+}
 
 internal static class Store
 {
     public static readonly ConcurrentDictionary<string, CredentialCreateOptions> RegistrationOptions = new();
     public static readonly ConcurrentDictionary<string, AssertionOptions> AssertionOptions = new();
-    public static readonly ConcurrentDictionary<string, CredentialRecord> Credentials = new();
+
+    // One user may register many devices (passkeys), so each maps to a list of credentials.
+    public static readonly ConcurrentDictionary<string, List<CredentialRecord>> Credentials = new();
+
+    public static List<CredentialRecord> CredentialsFor(string username) =>
+        Credentials.GetOrAdd(username, _ => new List<CredentialRecord>());
 }
