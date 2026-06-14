@@ -65,8 +65,13 @@ dotnet test                                   # includes Docker-based integratio
 
 ## Status
 
-Design settled; implementation starting. See [docs/design.md](docs/design.md) for the
-interface specification, JSON descriptor schema, and end-to-end usage examples.
+Core library (① virtual authenticator + ② envelope codecs) is **complete** and tested —
+11 unit tests plus 2 Docker-based integration tests passing against an independent Fido2NetLib
+server. See [docs/status.md](docs/status.md) for the detailed breakdown and
+[docs/design.md](docs/design.md) for the interface specification and descriptor schema.
+
+Optional/future work (not implemented): a thin HTTP flow runner, more algorithms (RS256/EdDSA),
+richer attestation formats, and a NuGet publish workflow.
 
 ## License
 
