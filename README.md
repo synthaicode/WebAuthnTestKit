@@ -26,12 +26,41 @@ wraps the standard WebAuthn structures in its own JSON envelope. WebAuthnTestKit
 - Surface: **envelope codec layer only** (`JSON ⇄ signature ⇄ JSON`). HTTP transport,
   begin/finish session continuity, and token usage are the consumer's responsibility.
 
+## Quickstart
+
+```csharp
+var kit    = TestKit.FromJson(File.ReadAllText("samples/descriptors/fido2-demo.json"));
+var device = new VirtualAuthenticator(new());      // a software test authenticator
+
+// Registration — you own the HTTP calls; the kit owns JSON <-> signature <-> JSON.
+var reg     = kit.Registration("fido2-demo");
+var begin   = await PostJson("/attestation/options", new { username = "alice" });
+var opts    = reg.DecodeOptions(begin);            // app envelope -> standard options + context
+var att     = device.MakeCredential(opts.Options); // sign with the test device
+var finish  = reg.EncodeFinish(att, opts.Context); // standard output -> app finish body
+var result  = reg.DecodeResult(await PostJson("/attestation/result", finish));
+// ... Authentication is the same shape via kit.Authentication(...).GetAssertion(...)
+```
+
+See [docs/design.md](docs/design.md) for the full walkthrough and `samples/` for a runnable
+descriptor + demo server.
+
 ## Layout
 
 ```
-src/WebAuthnTestKit         library (① virtual authenticator + ② envelope codecs)
-tests/WebAuthnTestKit.Tests xUnit tests
-docs/design.md              full IF spec and usage walkthrough
+src/WebAuthnTestKit                    library (① virtual authenticator + ② envelope codecs)
+tests/WebAuthnTestKit.Tests            xUnit unit tests
+tests/WebAuthnTestKit.IntegrationTests Docker/Testcontainers tests against a real Fido2NetLib server
+samples/descriptors/fido2-demo.json    example JSON envelope descriptor
+samples/Fido2DemoServer                dockerized independent WebAuthn server for integration tests
+docs/design.md                         full IF spec and usage walkthrough
+```
+
+## Testing
+
+```bash
+dotnet test --filter Category!=Integration   # fast unit tests only
+dotnet test                                   # includes Docker-based integration tests (needs Docker)
 ```
 
 ## Status

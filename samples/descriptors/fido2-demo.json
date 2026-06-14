@@ -1,0 +1,52 @@
+{
+  "service": "fido2-demo",
+  "rp": { "id": "localhost", "origin": "https://localhost" },
+
+  "registration": {
+    "begin": {
+      "optionsPath": "$.publicKey",
+      "challengeEncoding": "base64url",
+      "userIdEncoding": "base64url"
+    },
+    "finish": {
+      "body": {
+        "username": "{{source.username}}",
+        "attestation": {
+          "id": "{{credentialId}}",
+          "rawId": "{{rawId}}",
+          "type": "public-key",
+          "response": {
+            "clientDataJSON": "{{clientDataJSON}}",
+            "attestationObject": "{{attestationObject}}"
+          }
+        }
+      },
+      "result": { "successWhen": "$.status == 'ok'" }
+    }
+  },
+
+  "assertion": {
+    "begin": {
+      "optionsPath": "$.publicKey",
+      "challengeEncoding": "base64url",
+      "credentialIdEncoding": "base64url"
+    },
+    "finish": {
+      "body": {
+        "username": "{{source.username}}",
+        "assertion": {
+          "id": "{{credentialId}}",
+          "rawId": "{{rawId}}",
+          "type": "public-key",
+          "response": {
+            "clientDataJSON": "{{clientDataJSON}}",
+            "authenticatorData": "{{authenticatorData}}",
+            "signature": "{{signature}}",
+            "userHandle": "{{userHandle}}"
+          }
+        }
+      },
+      "result": { "tokenPath": "$.token", "successWhen": "$.status == 'ok'" }
+    }
+  }
+}

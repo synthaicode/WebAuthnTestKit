@@ -1,0 +1,5 @@
+# Normalize line endings; keep LF in the repo, let Git handle the working-tree EOL.
+* text=auto eol=lf
+*.sln text eol=crlf
+*.slnx text eol=lf
+*.cs text diff=csharp

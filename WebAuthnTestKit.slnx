@@ -3,6 +3,7 @@
     <Project Path="src/WebAuthnTestKit/WebAuthnTestKit.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/WebAuthnTestKit.IntegrationTests/WebAuthnTestKit.IntegrationTests.csproj" />
     <Project Path="tests/WebAuthnTestKit.Tests/WebAuthnTestKit.Tests.csproj" />
   </Folder>
 </Solution>
