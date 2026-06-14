@@ -24,18 +24,35 @@ public abstract class EnvelopeCodecBase
     {
         var resolved = new List<string>();
         var unresolved = new List<string>();
-        var body = EnvelopeEngine.Fill(Ceremony.Finish.Body, values, context.BeginResponse, resolved, unresolved);
+        var body = EnvelopeEngine.Fill(
+            Ceremony.Finish.Body, values, context.BeginResponse, context.UserContext, resolved, unresolved);
 
         LastDebug = new EnvelopeDebugInfo(
             RpId: Descriptor.Rp.Id,
             Origin: Descriptor.Rp.Origin,
-            ChallengeBase64Url: values.GetValueOrDefault("clientDataJSON", ""),
+            ChallengeBase64Url: ChallengeFromClientData(values),
             CredentialIdBase64Url: EnvelopeEngine.Encode(credentialId, "base64url"),
             OptionsPath: Ceremony.Begin.OptionsPath,
             ResolvedTemplateVariables: resolved,
             UnresolvedTemplateVariables: unresolved);
 
         return body;
+    }
+
+    /// <summary>Extracts the signed challenge (base64url) from the device's clientDataJSON for debug.</summary>
+    private static string ChallengeFromClientData(IReadOnlyDictionary<string, string> values)
+    {
+        if (!values.TryGetValue("clientDataJSON", out var clientData))
+            return "";
+        try
+        {
+            using var doc = JsonDocument.Parse(EnvelopeEngine.Decode(clientData, "base64url"));
+            return doc.RootElement.TryGetProperty("challenge", out var c) ? c.GetString() ?? "" : "";
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     /// <summary>Shared finish-response decoding (token, values, success).</summary>

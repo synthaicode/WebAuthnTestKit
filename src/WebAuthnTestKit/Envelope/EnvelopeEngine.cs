@@ -68,18 +68,20 @@ public static partial class EnvelopeEngine
 
     /// <summary>
     /// Deep-copies <paramref name="template"/>, substituting <c>{{var}}</c> tokens from
-    /// <paramref name="values"/> (and <c>{{source.path}}</c> from <paramref name="source"/>).
+    /// <paramref name="values"/>, <c>{{source.path}}</c> from <paramref name="source"/> (the begin
+    /// response), and <c>{{ctx.path}}</c> from <paramref name="userContext"/> (caller-supplied).
     /// Records which variables resolved and which did not.
     /// </summary>
     public static JsonNode Fill(
         JsonNode template,
         IReadOnlyDictionary<string, string> values,
         JsonNode? source,
+        JsonNode? userContext,
         List<string> resolved,
         List<string> unresolved)
     {
         var clone = template.DeepClone();
-        FillInPlace(clone, values, source, resolved, unresolved);
+        FillInPlace(clone, values, source, userContext, resolved, unresolved);
         return clone;
     }
 
@@ -87,6 +89,7 @@ public static partial class EnvelopeEngine
         JsonNode? node,
         IReadOnlyDictionary<string, string> values,
         JsonNode? source,
+        JsonNode? userContext,
         List<string> resolved,
         List<string> unresolved)
     {
@@ -96,18 +99,18 @@ public static partial class EnvelopeEngine
                 foreach (var key in obj.Select(kv => kv.Key).ToList())
                 {
                     if (obj[key] is JsonValue v && v.TryGetValue(out string? s))
-                        obj[key] = Substitute(s, values, source, resolved, unresolved);
+                        obj[key] = Substitute(s, values, source, userContext, resolved, unresolved);
                     else
-                        FillInPlace(obj[key], values, source, resolved, unresolved);
+                        FillInPlace(obj[key], values, source, userContext, resolved, unresolved);
                 }
                 break;
             case JsonArray arr:
                 for (var i = 0; i < arr.Count; i++)
                 {
                     if (arr[i] is JsonValue v && v.TryGetValue(out string? s))
-                        arr[i] = Substitute(s, values, source, resolved, unresolved);
+                        arr[i] = Substitute(s, values, source, userContext, resolved, unresolved);
                     else
-                        FillInPlace(arr[i], values, source, resolved, unresolved);
+                        FillInPlace(arr[i], values, source, userContext, resolved, unresolved);
                 }
                 break;
         }
@@ -117,14 +120,18 @@ public static partial class EnvelopeEngine
         string input,
         IReadOnlyDictionary<string, string> values,
         JsonNode? source,
+        JsonNode? userContext,
         List<string> resolved,
         List<string> unresolved)
     {
         return TemplateToken().Replace(input, m =>
         {
             var name = m.Groups[1].Value;
-            string? value = name.StartsWith("source.", StringComparison.Ordinal)
-                ? Resolve(source, "$." + name["source.".Length..])?.ToString()
+            string? value =
+                name.StartsWith("source.", StringComparison.Ordinal)
+                    ? Resolve(source, "$." + name["source.".Length..])?.ToString()
+                : name.StartsWith("ctx.", StringComparison.Ordinal)
+                    ? Resolve(userContext, "$." + name["ctx.".Length..])?.ToString()
                 : values.TryGetValue(name, out var v) ? v : null;
 
             if (value is null) { unresolved.Add(name); return m.Value; }

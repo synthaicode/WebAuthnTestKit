@@ -226,4 +226,82 @@ public class EnvelopeCodecTests
         Assert.NotNull(kit.Registration("svc"));
         Assert.Throws<KeyNotFoundException>(() => kit.Registration("missing"));
     }
+
+    [Fact]
+    public void EncodeFinish_resolves_ctx_from_user_context()
+    {
+        var descriptor = ServiceDescriptor.Parse("""
+        {
+          "service": "svc",
+          "rp": { "id": "example.com", "origin": "https://example.com" },
+          "assertion": {
+            "begin": { "optionsPath": "$.publicKey" },
+            "finish": { "body": { "tenant": "{{ctx.tenantId}}", "sig": "{{signature}}" }, "result": {} }
+          }
+        }
+        """);
+        var codec = new AuthenticationEnvelopeCodec(descriptor);
+        var assertion = SignedAssertion(out _);
+
+        var context = new EnvelopeContext(new JsonObject(), new JsonObject { ["tenantId"] = "acme" });
+        var body = codec.EncodeFinish(assertion, context);
+
+        Assert.Equal("acme", body["tenant"]!.GetValue<string>());
+        Assert.Empty(codec.LastDebug!.UnresolvedTemplateVariables);
+    }
+
+    [Fact]
+    public void Construction_fails_fast_on_invalid_userIdEncoding()
+    {
+        var json = """
+        { "service": "svc", "rp": { "id": "example.com", "origin": "https://example.com" },
+          "registration": { "begin": { "optionsPath": "$.publicKey", "userIdEncoding": "weird" },
+                            "finish": { "body": {}, "result": {} } } }
+        """;
+        var ex = Assert.Throws<DescriptorValidationException>(
+            () => new RegistrationEnvelopeCodec(ServiceDescriptor.Parse(json)));
+        Assert.Contains("userIdEncoding", string.Join(" ", ex.Errors));
+    }
+
+    [Fact]
+    public void Construction_fails_fast_on_invalid_credentialIdEncoding()
+    {
+        var json = """
+        { "service": "svc", "rp": { "id": "example.com", "origin": "https://example.com" },
+          "assertion": { "begin": { "optionsPath": "$.publicKey", "credentialIdEncoding": "weird" },
+                         "finish": { "body": {}, "result": {} } } }
+        """;
+        var ex = Assert.Throws<DescriptorValidationException>(
+            () => new AuthenticationEnvelopeCodec(ServiceDescriptor.Parse(json)));
+        Assert.Contains("credentialIdEncoding", string.Join(" ", ex.Errors));
+    }
+
+    [Fact]
+    public void LastDebug_challenge_is_the_signed_challenge_not_clientData()
+    {
+        var descriptor = ServiceDescriptor.Parse("""
+        { "service": "svc", "rp": { "id": "example.com", "origin": "https://example.com" },
+          "assertion": { "begin": { "optionsPath": "$.publicKey" },
+                         "finish": { "body": { "sig": "{{signature}}" }, "result": {} } } }
+        """);
+        var codec = new AuthenticationEnvelopeCodec(descriptor);
+        var assertion = SignedAssertion(out var challenge);
+
+        codec.EncodeFinish(assertion, new EnvelopeContext(new JsonObject()));
+
+        Assert.Equal(B64Url(challenge), codec.LastDebug!.ChallengeBase64Url);
+    }
+
+    // Registers a credential and returns a fresh assertion; outputs the challenge it signed.
+    private static AssertionResult SignedAssertion(out byte[] challenge)
+    {
+        var device = new VirtualAuthenticator(new());
+        var att = device.MakeCredential(new CreationOptions(
+            RandomNumberGenerator.GetBytes(32), new RpEntity(RpId),
+            new UserEntity(Encoding.UTF8.GetBytes("u"), "u", "U"),
+            [new PubKeyCredParam("public-key", -7)], Origin));
+        challenge = RandomNumberGenerator.GetBytes(32);
+        return device.GetAssertion(new RequestOptions(
+            challenge, RpId, [new AllowCredential("public-key", att.CredentialId)], Origin));
+    }
 }

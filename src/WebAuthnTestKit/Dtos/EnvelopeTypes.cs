@@ -3,10 +3,10 @@ using System.Text.Json.Nodes;
 namespace WebAuthnTestKit;
 
 /// <summary>
-/// Context carried from a server's "begin" response into the matching "finish" request,
-/// so the codec can resolve <c>{{source.*}}</c> template variables (requestId, transactionId,
-/// state, csrfToken, registrationToken, ...). <see cref="UserContext"/> is an optional bag of
-/// caller-supplied values also available to templates.
+/// Context carried from a server's "begin" response into the matching "finish" request, so the
+/// codec can resolve <c>{{source.path}}</c> template variables (requestId, transactionId, state,
+/// csrfToken, registrationToken, ...) against <see cref="BeginResponse"/>. <see cref="UserContext"/>
+/// is an optional bag of caller-supplied values, resolved in templates via <c>{{ctx.path}}</c>.
 /// </summary>
 public record EnvelopeContext(JsonNode BeginResponse, JsonNode? UserContext = null);
 

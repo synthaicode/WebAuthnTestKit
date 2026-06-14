@@ -91,7 +91,7 @@ public sealed class VirtualAuthenticator
         _options.UserPresent,
         _options.UserVerified,
         _credentials.ConvertAll(c => new StoredCredential(
-            c.CredentialId, c.RpId, c.UserHandle, c.PrivateKeyPkcs8, c.SignCount)));
+            Clone(c.CredentialId)!, c.RpId, Clone(c.UserHandle), Clone(c.PrivateKeyPkcs8)!, c.SignCount)));
 
     /// <summary>Restores a device (identity + credentials) from a prior <see cref="Export"/>.</summary>
     public static VirtualAuthenticator Import(DeviceState state)
@@ -101,14 +101,16 @@ public sealed class VirtualAuthenticator
         foreach (var c in state.Credentials)
             device._credentials.Add(new Credential
             {
-                CredentialId = c.CredentialId,
+                CredentialId = Clone(c.CredentialId)!,
                 RpId = c.RpId,
-                UserHandle = c.UserHandle,
-                PrivateKeyPkcs8 = c.PrivateKeyPkcs8,
+                UserHandle = Clone(c.UserHandle),
+                PrivateKeyPkcs8 = Clone(c.PrivateKeyPkcs8)!,
                 SignCount = c.SignCount,
             });
         return device;
     }
+
+    private static byte[]? Clone(byte[]? value) => value is null ? null : (byte[])value.Clone();
 
     private Credential SelectCredential(RequestOptions options)
     {

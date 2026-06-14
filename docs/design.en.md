@@ -244,8 +244,8 @@ class TestKit                         // entry point for many services
 - `begin.optionsPath` is present
 - `challengeEncoding` is supported (`base64url`/`base64`/`hex`); same for `userIdEncoding` /
   `credentialIdEncoding` (default base64url)
-- `finish.body` has **no unknown reserved variables (`{{...}}`)** (only standard variables or
-  `source.*` are allowed)
+- `finish.body` has **no unknown reserved variables (`{{...}}`)** (only standard variables,
+  `source.*` (begin response), or `ctx.*` (caller-supplied `UserContext`) are allowed)
 - `result.tokenPath` / `successWhen` / `values` (name → path map) are all optional
 
 ### 4.6 JSON descriptor schema
@@ -326,6 +326,9 @@ Individual-field style (a conventional API that expands `response` directly):
 {{source.<path>}}         # e.g. {{source.requestId}} {{source.transactionId}}
                           #      {{source.state}} {{source.tenantId}} {{source.csrfToken}}
                           #      {{source.challengeId}} {{source.registrationToken}}
+
+# caller-supplied values (EnvelopeContext.UserContext, any path)
+{{ctx.<path>}}            # e.g. {{ctx.tenantId}} {{ctx.deviceLabel}}
 ```
 
 - `assertionJson` = the whole standard assertion response object

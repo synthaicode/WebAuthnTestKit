@@ -233,7 +233,7 @@ class TestKit                         // 多サービスの入口(名前空間 W
 - `rp.id` がある / `rp.origin` がURLとして妥当
 - `begin.optionsPath` がある
 - `challengeEncoding` が対応値(`base64url`/`base64`/`hex`)。`userIdEncoding`/`credentialIdEncoding` も同様(既定 base64url)
-- `finish.body` に**未知の予約変数(`{{...}}`)が無い**(標準変数 or `source.*` のみ許可)
+- `finish.body` に**未知の予約変数(`{{...}}`)が無い**(標準変数 / `source.*`(begin応答)/ `ctx.*`(利用者指定の `UserContext`)のみ許可)
 - `result.tokenPath` / `successWhen` / `values`(名前→パス map)はいずれも任意
 
 ### 4.6 JSON記述子スキーマ
@@ -313,6 +313,9 @@ base64url化して1フィールドに入れる方式**の両対応。`{{source.*
 {{source.<path>}}         # 例: {{source.requestId}} {{source.transactionId}}
                          #     {{source.state}} {{source.tenantId}} {{source.csrfToken}}
                          #     {{source.challengeId}} {{source.registrationToken}}
+
+# 利用者指定の値(EnvelopeContext.UserContext、任意パス)
+{{ctx.<path>}}            # 例: {{ctx.tenantId}} {{ctx.deviceLabel}}
 ```
 
 - `assertionJson` = 標準assertion responseオブジェクト全体(`{id,rawId,type,response:{...}}`)のJSON文字列。

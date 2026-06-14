@@ -39,19 +39,29 @@ public static class DescriptorValidator
 
         if (string.IsNullOrWhiteSpace(ceremony.Begin.OptionsPath))
             errors.Add("'begin.optionsPath' is required.");
-        if (!EnvelopeEngine.IsSupportedEncoding(ceremony.Begin.ChallengeEncoding))
-            errors.Add($"'begin.challengeEncoding' must be base64url/base64/hex; got '{ceremony.Begin.ChallengeEncoding}'.");
+        ValidateEncoding(errors, "begin.challengeEncoding", ceremony.Begin.ChallengeEncoding);
+        if (kind == CeremonyKind.Registration)
+            ValidateEncoding(errors, "begin.userIdEncoding", ceremony.Begin.UserIdEncoding);
+        else
+            ValidateEncoding(errors, "begin.credentialIdEncoding", ceremony.Begin.CredentialIdEncoding);
 
         var allowed = kind == CeremonyKind.Registration ? RegistrationVars : AssertionVars;
         foreach (var name in EnvelopeEngine.TemplateVariables(ceremony.Finish.Body))
         {
-            if (name.StartsWith("source.", StringComparison.Ordinal)) continue;
+            if (name.StartsWith("source.", StringComparison.Ordinal)) continue;   // begin response
+            if (name.StartsWith("ctx.", StringComparison.Ordinal)) continue;       // caller-supplied UserContext
             if (!allowed.Contains(name))
                 errors.Add($"'finish.body' references unknown template variable '{{{{{name}}}}}'. " +
-                           $"Allowed: {string.Join(", ", allowed)}, or source.*");
+                           $"Allowed: {string.Join(", ", allowed)}, or source.*/ctx.*");
         }
 
         if (errors.Count > 0)
             throw new DescriptorValidationException(descriptor.Service, errors);
+    }
+
+    private static void ValidateEncoding(List<string> errors, string field, string encoding)
+    {
+        if (!EnvelopeEngine.IsSupportedEncoding(encoding))
+            errors.Add($"'{field}' must be base64url/base64/hex; got '{encoding}'.");
     }
 }

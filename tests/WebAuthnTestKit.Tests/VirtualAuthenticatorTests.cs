@@ -103,6 +103,25 @@ public class VirtualAuthenticatorTests
         Assert.Equal(2u, next);                          // continues, not reset
     }
 
+    [Fact]
+    public void Export_and_Import_isolate_credential_byte_arrays()
+    {
+        var device = new VirtualAuthenticator(new());
+        device.MakeCredential(Creation(RandomNumberGenerator.GetBytes(32)));
+        device.GetAssertion(Request());                  // counter -> 1
+
+        var state = device.Export();
+        var imported = VirtualAuthenticator.Import(state);
+
+        // Corrupt the snapshot after export/import; a shallow copy would break the keys below.
+        state.Credentials[0].CredentialId.AsSpan().Clear();
+        state.Credentials[0].PrivateKeyPkcs8.AsSpan().Clear();
+
+        // Both devices keep working: their arrays were cloned, not shared with the snapshot.
+        Assert.Equal(2u, SignCount(device.GetAssertion(Request())));
+        Assert.Equal(2u, SignCount(imported.GetAssertion(Request())));
+    }
+
     // ── helpers ─────────────────────────────────────────────
 
     private static RequestOptions Request() =>
