@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WebAuthnTestKit/WebAuthnTestKit.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WebAuthnTestKit.Tests/WebAuthnTestKit.Tests.csproj" />
+  </Folder>
+</Solution>
