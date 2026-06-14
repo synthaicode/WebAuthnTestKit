@@ -83,12 +83,12 @@ and richer attestation formats.
 
 - **CI** (`.github/workflows/ci.yml`) runs on every push/PR: build, unit tests, pack, and uploads
   the `.nupkg`/`.snupkg` as a build artifact (prerelease version `0.1.0-ci.<run>`).
-- **Release** (`.github/workflows/release.yml`) runs when a GitHub Release is published with a tag
-  like `v0.1.0`: it packs at that version, publishes to NuGet.org and GitHub Packages, and attaches
-  the packages to the release.
+- **Release** (`.github/workflows/release.yml`) runs when a GitHub Release is published with a
+  4-part tag like `v0.1.0.0`: it packs at that version, publishes to NuGet.org and GitHub Packages,
+  and attaches the packages to the release.
 
 To publish: set the repo secret `NUGET_API_KEY` (a nuget.org API key), then create a Release with a
-`vX.Y.Z` tag. (`GITHUB_TOKEN` for GitHub Packages is provided automatically.)
+4-part `vW.X.Y.Z` tag (e.g. `v0.1.0.0`). (`GITHUB_TOKEN` for GitHub Packages is provided automatically.)
 
 ## Security
 

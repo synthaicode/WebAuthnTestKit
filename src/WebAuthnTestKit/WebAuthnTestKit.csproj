@@ -12,7 +12,7 @@
 
   <PropertyGroup Label="Package">
     <PackageId>WebAuthnTestKit</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.1.0.0</Version>
     <Description>Test-side toolkit that converts application-specific WebAuthn API envelopes into standard WebAuthn DTOs, signs them with a software test authenticator, and converts the result back into the application's finish JSON shape. Not a WebAuthn server library; not an HTTP client.</Description>
     <Authors>synthaicode</Authors>
     <PackageTags>webauthn;fido2;passkey;testing;authentication</PackageTags>

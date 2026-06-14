@@ -77,7 +77,7 @@ Build: 0 warnings. Run fast suite with `dotnet test --filter Category!=Integrati
 
 - `.github/workflows/ci.yml` — build + unit tests + pack + upload `.nupkg`/`.snupkg` artifact on
   every push/PR (prerelease version `0.1.0-ci.<run>`).
-- `.github/workflows/release.yml` — on a published GitHub Release (tag `vX.Y.Z`): pack at that
+- `.github/workflows/release.yml` — on a published GitHub Release (4-part tag `vW.X.Y.Z`, e.g. `v0.1.0.0`): pack at that
   version, publish to NuGet.org (`NUGET_API_KEY` secret) and GitHub Packages (`GITHUB_TOKEN`), and
   attach the packages to the release. Library packs with SourceLink + symbols (`.snupkg`).
 

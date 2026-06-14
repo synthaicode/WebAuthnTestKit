@@ -2,11 +2,11 @@ name: Release
 
 on:
   release:
-    types: [published]   # create a GitHub Release with a tag like v0.1.0
+    types: [published]   # create a GitHub Release with a 4-part tag like v0.1.0.0
   workflow_dispatch:
     inputs:
       version:
-        description: 'Package version (e.g. 0.1.0)'
+        description: 'Package version, 4-part (e.g. 0.1.0.0)'
         required: true
 
 permissions:
