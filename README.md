@@ -1,5 +1,8 @@
 # WebAuthnTestKit
 
+[![CI](https://github.com/synthaicode/WebAuthnTestKit/actions/workflows/ci.yml/badge.svg)](https://github.com/synthaicode/WebAuthnTestKit/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/WebAuthnTestKit.svg)](https://www.nuget.org/packages/WebAuthnTestKit)
+
 A **test-side** C# toolkit for driving FIDO2/WebAuthn-protected APIs with a software
 (pseudo) authenticator.
 
@@ -73,7 +76,18 @@ server. See [docs/status.md](docs/status.md) for the detailed breakdown and
 [docs/design.md](docs/design.md) for the interface specification and descriptor schema.
 
 Optional/future work (not implemented): a thin HTTP flow runner, more algorithms (RS256/EdDSA),
-richer attestation formats, and a NuGet publish workflow.
+and richer attestation formats.
+
+## Releasing
+
+- **CI** (`.github/workflows/ci.yml`) runs on every push/PR: build, unit tests, pack, and uploads
+  the `.nupkg`/`.snupkg` as a build artifact (prerelease version `0.1.0-ci.<run>`).
+- **Release** (`.github/workflows/release.yml`) runs when a GitHub Release is published with a tag
+  like `v0.1.0`: it packs at that version, publishes to NuGet.org and GitHub Packages, and attaches
+  the packages to the release.
+
+To publish: set the repo secret `NUGET_API_KEY` (a nuget.org API key), then create a Release with a
+`vX.Y.Z` tag. (`GITHUB_TOKEN` for GitHub Packages is provided automatically.)
 
 ## License
 

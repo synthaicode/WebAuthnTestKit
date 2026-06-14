@@ -61,7 +61,14 @@ Build: 0 warnings. Run fast suite with `dotnet test --filter Category!=Integrati
   the begin/finish session-continuity glue that currently lives with the consumer.
 - Additional algorithms (RS256, EdDSA) and full/packed attestation formats.
 - Extensions (credProps, largeBlob, prf, …).
-- NuGet publish workflow.
+
+## CI / Release
+
+- `.github/workflows/ci.yml` — build + unit tests + pack + upload `.nupkg`/`.snupkg` artifact on
+  every push/PR (prerelease version `0.1.0-ci.<run>`).
+- `.github/workflows/release.yml` — on a published GitHub Release (tag `vX.Y.Z`): pack at that
+  version, publish to NuGet.org (`NUGET_API_KEY` secret) and GitHub Packages (`GITHUB_TOKEN`), and
+  attach the packages to the release. Library packs with SourceLink + symbols (`.snupkg`).
 
 See [design.md](design.md) for the full interface specification and the consumer-side
 responsibilities (§6) that the envelope-only surface leaves to the caller.

@@ -485,3 +485,6 @@ $RECYCLE.BIN/
 .server.log
 .demo-device.json
 *.device.json
+
+# Build output
+artifacts/

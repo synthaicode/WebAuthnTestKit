@@ -12,11 +12,19 @@
 
   <PropertyGroup Label="Package">
     <PackageId>WebAuthnTestKit</PackageId>
+    <Version>0.1.0</Version>
     <Description>Test-side toolkit that converts application-specific WebAuthn API envelopes into standard WebAuthn DTOs, signs them with a software test authenticator, and converts the result back into the application's finish JSON shape. Not a WebAuthn server library; not an HTTP client.</Description>
     <Authors>synthaicode</Authors>
     <PackageTags>webauthn;fido2;passkey;testing;authentication</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/synthaicode/WebAuthnTestKit</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/synthaicode/WebAuthnTestKit</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +33,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.Formats.Cbor" Version="10.0.9" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
 </Project>
