@@ -23,6 +23,17 @@ FIDO2/WebAuthnで保護されたAPIを、**疑似デバイス(ソフトウェア
 - 初期版は **attestation fmt=`none` のみ対応**。認証器の真正性検証やAAGUID制限のテストは対象外。
   (疑似デバイスとAPIテストのブートストラップ用途。enterprise attestationポリシーのテストは非対象)
 
+> **Security note(セキュリティ上の注意)**
+> WebAuthnTestKit はソフトウェアのテスト用 authenticator と、エクスポート可能なデバイス状態を生成します。
+> 生成したデバイス状態・秘密鍵・クレデンシャルを**本番の authenticator として使用しないでください**。
+> 本ツールの疑似 authenticator はハードウェアによる鍵保護を持たず、実際の人の所作による
+> user presence/verification も強制しません(UP/UV フラグは設定値で立てるだけです)。
+> 自分自身の、あるいは許可された WebAuthn 連携のテスト目的にのみ使用してください。
+>
+> Security note:
+> WebAuthnTestKit creates software test authenticators and exportable device states.
+> Do not use generated device states, private keys, or credentials as production authenticators.
+
 ---
 
 ## 1. 背景と課題

@@ -72,7 +72,7 @@ dotnet test                                   # includes Docker-based integratio
 ## Status
 
 Core library (① virtual authenticator + ② envelope codecs) is **complete** and tested —
-11 unit tests plus 2 Docker-based integration tests passing against an independent Fido2NetLib
+11 unit tests plus 5 Docker-based integration tests passing against an independent Fido2NetLib
 server. See [docs/status.md](docs/status.md) for the detailed breakdown and
 [docs/design.en.md](docs/design.en.md) for the interface specification and descriptor schema.
 
@@ -89,6 +89,14 @@ and richer attestation formats.
 
 To publish: set the repo secret `NUGET_API_KEY` (a nuget.org API key), then create a Release with a
 `vX.Y.Z` tag. (`GITHUB_TOKEN` for GitHub Packages is provided automatically.)
+
+## Security
+
+WebAuthnTestKit creates software test authenticators and exportable device states.
+Do not use generated device states, private keys, or credentials as production authenticators.
+The software authenticator performs no hardware-backed key protection or user presence/verification
+enforcement — the UP/UV flags are set by configuration, not by a real gesture. It is intended only
+for testing your own (or authorized) WebAuthn integrations.
 
 ## License
 

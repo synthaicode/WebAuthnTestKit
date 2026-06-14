@@ -26,6 +26,13 @@ with a **software (pseudo) authenticator**.
   verification and AAGUID restrictions are out of scope (this is for test devices and API test
   bootstrapping, not for testing enterprise attestation policy).
 
+> **Security note**
+> WebAuthnTestKit creates software test authenticators and exportable device states.
+> Do not use generated device states, private keys, or credentials as production authenticators.
+> The software authenticator has no hardware-backed key protection and does not enforce a real user
+> presence/verification gesture (the UP/UV flags are set by configuration). Use it only for testing
+> your own or otherwise authorized WebAuthn integrations.
+
 ---
 
 ## 1. Background and problem
