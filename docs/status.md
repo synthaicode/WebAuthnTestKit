@@ -42,9 +42,20 @@ Docker-based integration tests passing against an independent Fido2NetLib server
 | Suite | Count | Notes |
 |-------|-------|-------|
 | `WebAuthnTestKit.Tests` (unit) | 11 | device crypto round-trip (signature verifies against the registered key), envelope mapping, validation fail-fast |
-| `WebAuthnTestKit.IntegrationTests` (Docker) | 2 | Testcontainers builds & runs the Fido2NetLib demo server; register + authenticate + counter progression verified server-side |
+| `WebAuthnTestKit.IntegrationTests` (Docker) | 5 | Testcontainers builds & runs the Fido2NetLib demo server; register + authenticate, counter progression, `userVerification=required` (accepted with UV / rejected without), and multiple devices per user — all verified server-side |
 
 Build: 0 warnings. Run fast suite with `dotnet test --filter Category!=Integration`.
+
+## Samples (`samples/`)
+
+- `descriptors/fido2-demo.json` — example envelope descriptor (options under `$.publicKey`,
+  `{{source.username}}` carry-over, credential wrapped under `attestation`/`assertion`).
+- `Fido2DemoServer/` — independent Fido2NetLib verification server + `Dockerfile`. Stores
+  **multiple credentials per user** and honors a `userVerification` request field.
+- `DemoClient/` — runnable console client with separate subcommands: `register` (enrol a new
+  device → `--state` file), `auth` (sign in with a saved device, `--uv` optional), and `demo`
+  (enrol two devices to one account and authenticate with each). Shows the consumer-owned HTTP
+  transport, begin/finish continuity, token usage, and `DeviceState` persistence (design.md §6).
 
 ## Decisions of record
 

@@ -3,6 +3,9 @@
 FIDO2/WebAuthnで保護されたAPIを、**疑似デバイス(ソフトウェアauthenticator)**で
 自動テスト/プログラム駆動するためのC#ツールキット。
 
+> **状態**: 本書は**実装済みのAPIに同期**しています(コア①+②完成)。進捗は [status.md](status.md)、
+> 動く例は `samples/`。仕様の細部はソース(`src/WebAuthnTestKit/`)が最終的な正本です。
+
 ---
 
 ## 0. これは何で、何でないか(スコープ宣言)
@@ -81,8 +84,9 @@ JSON(各API独自)
 
 ```csharp
 // 儀式の入力(サーバのbegin応答から復号)
-record CreationOptions(byte[] Challenge, RpEntity Rp, UserEntity User, PubKeyCredParam[] Params);
-record RequestOptions (byte[] Challenge, string RpId, AllowCredential[] Allow);
+// Origin = clientDataJSON に書く完全オリジン(記述子の rp.origin 由来)。RpId(rpIdHash)とは別物。
+record CreationOptions(byte[] Challenge, RpEntity Rp, UserEntity User, PubKeyCredParam[] Params, string Origin);
+record RequestOptions (byte[] Challenge, string RpId, AllowCredential[] Allow, string Origin);
 
 // begin応答の文脈(finishへ引き継ぐ source 値の供給源)
 record EnvelopeContext(JsonNode BeginResponse, JsonNode? UserContext = null);
@@ -199,9 +203,10 @@ static class EnvelopeEngine          // Codecの下回り(重複排除)
     bool     Eval   (JsonNode root, string condition);     // successWhen 評価
 }
 
-class WebAuthnTestKit                 // 多サービスの入口
+class TestKit                         // 多サービスの入口(名前空間 WebAuthnTestKit との衝突回避で TestKit)
 {
-    public WebAuthnTestKit(IEnumerable<ServiceDescriptor> descriptors);
+    public TestKit(IEnumerable<ServiceDescriptor> descriptors);
+    public static TestKit FromJson(params string[] descriptorJson);   // JSON文字列から直接ロード
     public RegistrationEnvelopeCodec   Registration(string service);
     public AuthenticationEnvelopeCodec Authentication(string service);
 }
@@ -214,9 +219,9 @@ class WebAuthnTestKit                 // 多サービスの入口
 - `service` 名がある
 - `rp.id` がある / `rp.origin` がURLとして妥当
 - `begin.optionsPath` がある
-- `challengeEncoding` が対応値(`base64url`/`base64`/`hex`)
+- `challengeEncoding` が対応値(`base64url`/`base64`/`hex`)。`userIdEncoding`/`credentialIdEncoding` も同様(既定 base64url)
 - `finish.body` に**未知の予約変数(`{{...}}`)が無い**(標準変数 or `source.*` のみ許可)
-- `result.tokenPath`(及び使う場合 `successWhen`)が妥当
+- `result.tokenPath` / `successWhen` / `values`(名前→パス map)はいずれも任意
 
 ### 4.6 JSON記述子スキーマ
 
@@ -244,13 +249,14 @@ base64url化して1フィールドに入れる方式**の両対応。`{{source.*
   },
 
   "assertion": {
-    "begin": { "optionsPath": "$.publicKey", "challengeEncoding": "base64url" },
+    "begin": { "optionsPath": "$.publicKey", "challengeEncoding": "base64url", "credentialIdEncoding": "base64url" },
     "finish": {
       "body": {
         "requestId": "{{source.requestId}}",
         "fidoAssertion": "{{assertionJsonBase64Url}}"
       },
-      "result": { "tokenPath": "$.token" }
+      "result": { "tokenPath": "$.token", "successWhen": "$.status == 'ok'",
+                  "values": { "refreshToken": "$.refresh", "role": "$.user.role" } }
     }
   }
 }
@@ -299,6 +305,8 @@ base64url化して1フィールドに入れる方式**の両対応。`{{source.*
 - `assertionJson` = 標準assertion responseオブジェクト全体(`{id,rawId,type,response:{...}}`)のJSON文字列。
   `assertionJsonBase64Url` はそのbase64url。登録側も同様。
 - `rp.id` / `rp.origin` を**第一級項目**にして、ドメイン束縛をAPIごとに明示注入。
+- `result.values`(任意)= 名前→JSONパスの map。finish応答から複数値を抽出して `CeremonyResult.Values` に格納。
+  代表値は `result.tokenPath` → `PrimaryToken`。
 - 宣言で収まらない変形は将来フック併用に逃がす(初期は宣言のみ)。
 
 ---
@@ -308,7 +316,7 @@ base64url化して1フィールドに入れる方式**の両対応。`{{source.*
 ### 5.1 登録(Registration)
 
 ```csharp
-var kit    = new WebAuthnTestKit(descriptors);
+var kit    = new TestKit(descriptors);                 // または TestKit.FromJson(descriptorJson)
 var device = new VirtualAuthenticator(new());          // 疑似デバイスを用意
 var reg    = kit.Registration("example-api");          // 記述子バインド済み(構築時に検証)
 
@@ -417,10 +425,15 @@ if (auth.LastDebug is { UnresolvedTemplateVariables.Count: > 0 } dbg)
 
 ---
 
-## 9. 次の一手
+## 9. 実装状況
 
-1. 境界DTO(`CreationOptions` / `AttestationResult` / `CeremonyResult` 等)のフィールド確定。
-2. `VirtualAuthenticator.MakeCredential` / `GetAssertion` の最小実装(ES256 / none / signCount / allowCredentials照合)。
-3. `EnvelopeEngine`(パス解決・エンコード変換・テンプレ・`source.*`・全体base64url変数)→ 2つのCodec。
-4. 記述子の構築時検証 + `EnvelopeDebugInfo`。
-5. 実APIの記述子を1本書いて end-to-end で疎通確認。
+この設計書のコア(①+②)は**実装完了**。当初の手順は全て消化済み:
+
+1. ✅ 境界DTO 確定(`Origin` を含む)。
+2. ✅ `VirtualAuthenticator`(ES256 / none / signCount / allowCredentials照合 / Export・Import)。
+3. ✅ `EnvelopeEngine` + 2つのCodec + `TestKit` ファサード。
+4. ✅ 構築時検証 + `EnvelopeDebugInfo`。
+5. ✅ Docker 上の独立サーバ(Fido2NetLib)で end-to-end 疎通。
+
+詳細な状況・テスト構成・CI/Release は [status.md](status.md) を参照。
+サンプル(記述子 / デモサーバ / 実行可能クライアント)は `samples/` を参照。
