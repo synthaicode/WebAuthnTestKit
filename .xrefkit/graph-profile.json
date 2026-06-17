@@ -4,12 +4,20 @@
   "profile_version": 1,
   "generated_at": "2026-06-17",
   "key_scheme": "roslyn-docid",
+  "extractor": { "name": "dotnet_structure_graph", "version": "v1" },
   "scope": "src + samples + tests (5 projects)",
   "graph_summary": {
     "nodes": 509,
     "edges": 934,
     "name_nodes": 49
   },
+  "regeneration_triggers": [
+    "extractor_version_changed",
+    "large_refactoring",
+    "protocol_field_convention_changed",
+    "ceremony_api_changed",
+    "aspnet_host_boundary_changed"
+  ],
   "name_coupling": {
     "level": "medium",
     "required_for_tm": false,
