@@ -1,0 +1,61 @@
+{
+  "schema": "xrefkit.graph-profile/v1",
+  "repository": "WebAuthnTestKit",
+  "profile_version": 1,
+  "generated_at": "2026-06-17",
+  "key_scheme": "roslyn-docid",
+  "scope": "src + samples + tests (5 projects)",
+  "graph_summary": {
+    "nodes": 509,
+    "edges": 934,
+    "name_nodes": 49
+  },
+  "name_coupling": {
+    "level": "medium",
+    "required_for_tm": false,
+    "rationale": "type-coupled; protocol JSON field names are a small shared-name axis, not the primary impact channel",
+    "categories": {
+      "protocol_field": ["base64url", "public-key", "username", "type", "challenge"]
+    }
+  },
+  "hubs": {
+    "structural": [
+      {
+        "symbol": "VirtualAuthenticator..ctor",
+        "id": "M:WebAuthnTestKit.VirtualAuthenticator.#ctor(WebAuthnTestKit.VirtualAuthenticatorOptions)",
+        "fan_in": 17,
+        "fan_out": 0,
+        "reason": "core domain object; widest change ripple"
+      },
+      {
+        "symbol": "VirtualAuthenticator.MakeCredential",
+        "id": "M:WebAuthnTestKit.VirtualAuthenticator.MakeCredential(WebAuthnTestKit.CreationOptions)",
+        "fan_in": 13,
+        "fan_out": 8,
+        "reason": "registration ceremony entry"
+      },
+      {
+        "symbol": "VirtualAuthenticator.GetAssertion",
+        "id": "M:WebAuthnTestKit.VirtualAuthenticator.GetAssertion(WebAuthnTestKit.RequestOptions)",
+        "fan_in": 13,
+        "fan_out": 6,
+        "reason": "authentication ceremony entry"
+      },
+      {
+        "symbol": "AuthenticationEnvelopeCodec.EncodeFinish",
+        "id": "M:WebAuthnTestKit.AuthenticationEnvelopeCodec.EncodeFinish(WebAuthnTestKit.AssertionResult,WebAuthnTestKit.EnvelopeContext)",
+        "fan_in": 9,
+        "fan_out": 3,
+        "reason": "envelope transform"
+      }
+    ],
+    "external_boundary": [
+      {
+        "symbol": "Program (HttpContext)",
+        "id": "M:Program.(Microsoft.AspNetCore.Http.HttpContext)",
+        "external_calls": 50,
+        "reason": "ASP.NET minimal-API host boundary (sample server)"
+      }
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "xrefkit.graph-baseline/v1",
+  "repository": "WebAuthnTestKit",
+  "accepted_at": "2026-06-17",
+  "based_on_profile_version": 1,
+  "scope": "src + samples + tests (5 projects)",
+  "graph_summary": {
+    "nodes": 509,
+    "edges": 934,
+    "name_nodes": 49
+  },
+  "accepted_hubs": {
+    "M:WebAuthnTestKit.VirtualAuthenticator.#ctor(WebAuthnTestKit.VirtualAuthenticatorOptions)": { "fan_in": 17, "fan_out": 0 },
+    "M:WebAuthnTestKit.VirtualAuthenticator.MakeCredential(WebAuthnTestKit.CreationOptions)": { "fan_in": 13, "fan_out": 8 },
+    "M:WebAuthnTestKit.VirtualAuthenticator.GetAssertion(WebAuthnTestKit.RequestOptions)": { "fan_in": 13, "fan_out": 6 },
+    "M:WebAuthnTestKit.AuthenticationEnvelopeCodec.EncodeFinish(WebAuthnTestKit.AssertionResult,WebAuthnTestKit.EnvelopeContext)": { "fan_in": 9, "fan_out": 3 }
+  },
+  "accepted_name_coupling": {
+    "protocol_field": { "base64url": 10, "username": 10, "public-key": 10, "type": 9, "challenge": 8 }
+  },
+  "accepted_external_boundary": {
+    "M:Program.(Microsoft.AspNetCore.Http.HttpContext)": 50
+  },
+  "drift_check": {
+    "purpose": "Re-extract on change and diff against this baseline. Drift is a REVIEW SIGNAL, not an auto-fail.",
+    "signals": [
+      "new hub: a symbol crossing fan_in >= 10 not listed in accepted_hubs",
+      "removed hub: an accepted hub dropping below fan_in 10",
+      "hub delta: accepted hub fan_in changing by > 50%",
+      "new name coupling: a shared name with members >= 8 not in accepted_name_coupling",
+      "size drift: node or edge count changing by > 10%"
+    ]
+  }
+}
