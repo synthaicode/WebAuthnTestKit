@@ -1,0 +1,50 @@
+schema: xrefkit.graph-rules/v1
+repository: WebAuthnTestKit
+profile_version: 1
+
+# Traversal / pruning rules for TM candidate generation.
+# These rules are persisted and requirement-independent.
+# Per-change TM, impacted-boundary lists, traversal results, and seeds are not persisted here.
+
+traversal_policy:
+  default_edges:
+    - calls
+    - type_reference
+    - implements
+    - inherits
+
+  enabled_name_edges:
+    - protocol_field
+
+  weak_name_edges:
+    - test_literal
+    - environment_literal
+
+  prune:
+    - test_fixture_transit
+    - generated_noise
+
+name_stoplist_applied: true
+
+edge_status:
+  emitted:
+    - calls
+    - implements
+    - inherits
+    - contains
+    - declares
+    - uses-name
+
+  planned:
+    - type_reference
+    - reads
+    - writes
+    - uses-config
+    - uses-db
+
+notes: |
+  This repo is primarily type-coupled, so name edges are a minor axis (WebAuthn protocol field names only). The call + type graph carries most of the impact.
+
+  weak_name_edges are low-signal test/environment literals and are followed only on explicit request.
+
+  prune categories are treated as transit/pass-through, not impacted targets. Tests dominate fan-out and are pruned to prevent over-reach.
